@@ -1,0 +1,206 @@
+<div class="uml-editor" >
+  <h2>Editor UML</h2>
+
+  <div class="toolbar">
+    <button (click)="addClass()">➕ Agregar Clase</button>
+    <button (click)="addAssociation()">🔗 Agregar Asociación</button>
+    <button (click)="addManyToMany()">🔄 Relación M:M</button>
+    <button (click)="addInheritance()">🧬 Agregar Herencia</button>
+    <button (click)="addAggregation()">🔷 Agregar Agregación</button>
+    <button (click)="addComposition()">⬛ Agregar Composición</button>
+    <button class="delete-btn" 
+          [disabled]="selectedClasses.length === 0"
+          (click)="deleteSelectedClasses()">
+      🗑️ Eliminar Seleccionadas ({{ selectedClasses.length }})
+    </button>
+  </div>
+
+  <svg class="canvas"
+      (mousedown)="onMouseDown($event)"
+      (mousemove)="onMouseMove($event)"
+      (mouseup)="onMouseUp($event)">
+    <!-- Dibujar asociaciones -->
+    <g *ngFor="let assoc of associations" (dblclick)="editAssociation(assoc)">
+      
+      <!-- General association (simple.....) -->
+      <ng-container *ngIf="assoc.type === 'association'">
+        <line [attr.x1]="assoc.source.x + getClassWidth(assoc.source)/2"
+              [attr.y1]="assoc.source.y + getClassHeight(assoc.source)/2"
+              [attr.x2]="assoc.target.x + getClassWidth(assoc.target)/2"
+              [attr.y2]="assoc.target.y + getClassHeight(assoc.target)/2"
+              stroke="black" />
+      </ng-container>
+      <!-- Botón X para eliminar asociaciónes -->
+      <circle [attr.cx]="(assoc.source.x + getClassWidth(assoc.source)/2 + assoc.target.x + getClassWidth(assoc.target)/2) / 2"
+          [attr.cy]="(assoc.source.y + getClassHeight(assoc.source)/2 + assoc.target.y + getClassHeight(assoc.target)/2) / 2 + 15"
+          r="8" fill="red" stroke="darkred" 
+          (click)="deleteAssociation(assoc)"
+          style="cursor: pointer">
+      </circle>
+      <text [attr.x]="(assoc.source.x + getClassWidth(assoc.source)/2 + assoc.target.x + getClassWidth(assoc.target)/2) / 2"
+            [attr.y]="(assoc.source.y + getClassHeight(assoc.source)/2 + assoc.target.y + getClassHeight(assoc.target)/2) / 2 + 19"
+            font-size="10" fill="white" text-anchor="middle"
+            (click)="deleteAssociation(assoc)"
+            style="cursor: pointer; pointer-events: none;">
+        ✕
+      </text>
+      <ng-container *ngIf="assoc.type === 'inheritance'">
+        <line [attr.x1]="assoc.source.x + getClassWidth(assoc.source)/2"
+              [attr.y1]="assoc.source.y + getClassHeight(assoc.source)/2"
+              [attr.x2]="assoc.target.x + getClassWidth(assoc.target)/2"
+              [attr.y2]="assoc.target.y + getClassHeight(assoc.target)/2"
+              stroke="black" />
+        <polygon [attr.points]="getInheritanceArrow(assoc.source, assoc.target)"
+                fill="white" stroke="black" />
+      </ng-container>
+
+      <!-- AGREGACIÓN -->
+      <ng-container *ngIf="assoc.type === 'aggregation'">
+        <line [attr.x1]="assoc.source.x + getClassWidth(assoc.source)/2"
+              [attr.y1]="assoc.source.y + getClassHeight(assoc.source)/2"
+              [attr.x2]="getDiamondConnectionPoint(assoc.source, assoc.target).x"
+              [attr.y2]="getDiamondConnectionPoint(assoc.source, assoc.target).y"
+              stroke="black" />
+        <!-- Rombo vacío para agregación -->
+        <polygon [attr.points]="getDiamondArrow(assoc.source, assoc.target)"
+                fill="white" 
+                stroke="black" />
+      </ng-container>
+
+      <!-- COMPOSICIÓN -->
+      <ng-container *ngIf="assoc.type === 'composition'">
+        <line [attr.x1]="assoc.source.x + getClassWidth(assoc.source)/2"
+              [attr.y1]="assoc.source.y + getClassHeight(assoc.source)/2"
+              [attr.x2]="getDiamondConnectionPoint(assoc.source, assoc.target).x"
+              [attr.y2]="getDiamondConnectionPoint(assoc.source, assoc.target).y"
+              stroke="black" />
+        <!-- Rombo relleno para composición -->
+        <polygon [attr.points]="getDiamondArrow(assoc.source, assoc.target)"
+                fill="black" 
+                stroke="black" />
+      </ng-container>
+
+
+      <!-- Multiplicidad en origen -->
+      <text [attr.x]="getBorderPoint(assoc.source, assoc.target,30).x"
+            [attr.y]="getBorderPoint(assoc.source, assoc.target,30).y"
+            font-size="12"
+            text-anchor="middle">
+        {{ assoc.sourceMultiplicity }}
+      </text>
+      <!-- Multiplicidad en destino -->
+      <text [attr.x]="getBorderPoint(assoc.target, assoc.source,30).x"
+            [attr.y]="getBorderPoint(assoc.target, assoc.source,30).y"
+            font-size="12"
+            text-anchor="middle">
+        {{ assoc.targetMultiplicity }}
+      </text>
+      <!-- Rol en medio (igual que antes) -->
+      <text [attr.x]="(assoc.source.x + getClassWidth(assoc.source)/2 + assoc.target.x + getClassWidth(assoc.target)/2) / 2"
+            [attr.y]="(assoc.source.y + getClassHeight(assoc.source)/2 + assoc.target.y + getClassHeight(assoc.target)/2) / 2 - 10"
+            font-size="12"
+            font-style="italic">
+        {{ assoc.role }}
+      </text>
+
+    </g>
+    
+  
+    <!-- Dibujar clases -->
+    <g *ngFor="let cls of classes"
+      [attr.transform]="'translate(' + cls.x + ',' + cls.y + ')'"
+      (dblclick)="editClass(cls)"
+      (mousedown)="startDrag($event, cls)"
+      (click)="toggleSelect(cls)">
+      <rect [attr.width]="getClassWidth(cls)" 
+            [attr.height]="getClassHeight(cls)"
+            [attr.fill]="selectedClasses.includes(cls) ? 'lightgreen' : 'lightblue'"
+            stroke="black"></rect>
+      <!-- Botón X para eliminar clase -->
+      <circle [attr.cx]="getClassWidth(cls) - 15" cy="15" r="8" 
+              fill="red" stroke="darkred" 
+              (click)="deleteClass(cls); $event.stopPropagation()"
+              style="cursor: pointer">
+      </circle>
+      <text [attr.x]="getClassWidth(cls) - 15" y="19" 
+            font-size="10" fill="white" 
+            text-anchor="middle"
+            (click)="deleteClass(cls); $event.stopPropagation()"
+            style="cursor: pointer; pointer-events: none;">
+        ✕
+      </text>
+      <text x="10" y="20" font-weight="bold">{{ cls.name }}</text>
+      <text *ngFor="let attr of cls.attributes; let i = index"
+            x="10" [attr.y]="40 + i*20 + 20">
+        {{ attr.name }}: {{ attr.type }}
+      </text>
+    </g>
+
+  </svg>
+
+  <!-- Modal simple para editar clase -->
+  <div *ngIf="selectedClass" class="modal">
+    <h3>Editar Clase</h3>
+    <div>
+      <!-- Botón para eliminar toda la clase -->
+      <button class="delete-btn" (click)="deleteClass(selectedClass)">
+        🗑️ Eliminar Clase
+      </button>
+    </div>
+    <br>
+    
+
+    <label>Nombre:
+      <input [(ngModel)]="selectedClass.name" />
+    </label>
+    <h4>Atributos</h4>
+
+    <div *ngFor="let attr of selectedClass.attributes" style="display: flex; gap: 8px; align-items: center;">
+      <input [(ngModel)]="attr.name" placeholder="nombre" />
+      <select [(ngModel)]="attr.type">
+        <option value="String">String</option>
+        <option value="int">int</option>
+        <option value="double">double</option>
+        <option value="boolean">boolean</option>
+      </select>
+      <button (click)="deleteAttribute(attr)" style="background: red; color: white; border: none; padding: 4px 8px; cursor: pointer;">✕</button>
+    </div>
+    <button (click)="addAttribute()">+ Atributo</button>
+    <br />
+    <button (click)="closeModal()">Cerrar</button>
+  </div>
+
+  <!-- Modal para editar relación -->
+  <div *ngIf="selectedAssociation" class="modal">
+    <h3>Editar Relación</h3>
+    <div>
+      <!-- Botón para eliminar la relación -->
+      <button class="delete-btn" (click)="deleteAssociation(selectedAssociation)">
+        🗑️ Eliminar Relación
+      </button>
+    </div>
+    <br/>
+
+    <label>Rol:
+      <input [(ngModel)]="selectedAssociation.role" />
+    </label>
+    <br/>
+    <label>Multiplicidad Origen:
+      <input [(ngModel)]="selectedAssociation.sourceMultiplicity" />
+    </label>
+    <br/>
+    <label>Multiplicidad Destino:
+      <input [(ngModel)]="selectedAssociation.targetMultiplicity" />
+    </label>
+    <br/>
+    <button (click)="closeAssocModal()">Cerrar</button>
+  </div>
+
+
+  <div class="actions">
+    <button (click)="export('json')">Exportar JSON</button>
+    <button (click)="export('sql')">Exportar SQL</button>
+    <button (click)="export('backend')">Exportar Backend</button>
+    <button (click)="saveDiagram()" style="background: green; color: white;">💾 Guardar Diagrama</button>
+  </div>
+</div>
