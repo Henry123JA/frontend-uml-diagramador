@@ -6,24 +6,35 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class Diagram {
-  private baseUrl = 'http://localhost:8080/api';
+  private baseUrl = 'http://localhost:8080/api/codegen';
 
   constructor(private http: HttpClient) {}
-
+/*
   saveDiagram(diagramData: any): Observable<any> {
     return this.http.post(`${this.baseUrl}/diagrams`, diagramData);
   }
+*/
+  generateSQL(umlJson: any): Observable<Blob> {
+    return this.http.post(`${this.baseUrl}/generate-sql`, umlJson, { responseType: 'blob' as 'json' }) as any;
+  }
+/*
+  generateBackend(umlJson: any): Observable<Blob> {
+    return this.http.post(`${this.base}/generate-backend`, umlJson, { responseType: 'blob' as 'json' }) as any;
+  }*/
 
   generateBackend(diagram: any): Observable<Blob> {
-    return this.http.post(`${this.baseUrl}/codegen/generate`, diagram, {
+    return this.http.post(`${this.baseUrl}/generate-backend`, diagram, {
       responseType: 'blob'
     });
   }
 
-  // Exportar SQL (recibe JSON del diagrama y devuelve script.sql)
-  generateSQL(diagram: any): Observable<Blob> {
-    return this.http.post(`${this.baseUrl}/generator/sql`, diagram, {
-      responseType: 'blob'
-    });
+  generateInserts(umlJson: any, rows: number): Observable<Blob> {
+    return this.http.post(`${this.baseUrl}/generate-sql-inserts?rows=${rows}`, umlJson, { responseType: 'blob' as 'json' }) as any;
   }
+
+  // opcional: generar XML para draw.io
+  generateXml(umlJson: any): Observable<Blob> {
+    return this.http.post(`${this.baseUrl}/generate-xml`, umlJson, { responseType: 'blob' as 'json' }) as any;
+  }
+
 }

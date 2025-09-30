@@ -19,3 +19,13 @@ export interface Association {
   role?: string;
   type: 'association' | 'inheritance'| 'aggregation' | 'composition';
 }
+
+
+
+export interface ProjectDto {
+  id?: number;
+  projectName: string;
+  basePackage?: string;
+  createdBy?: string;
+  umlJson: any;
+}

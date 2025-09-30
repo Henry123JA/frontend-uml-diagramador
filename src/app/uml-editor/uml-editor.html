@@ -7,6 +7,12 @@
       <input [(ngModel)]="diagramName" placeholder="Ej: MiDiagrama" />
     </label>
   </div>
+  <div>
+    <label>
+      propietario:
+      <input [(ngModel)]="owner" placeholder="Ej: Pedro" />
+    </label>
+  </div>
   <div class="toolbar">
     <button (click)="addClass()">➕ Agregar Clase</button>
     <button (click)="addAssociation()">🔗 Agregar Asociación</button>
@@ -207,6 +213,7 @@
     
     <button (click)="export('json')">Exportar JSON</button>
     <button (click)="export('sql')">Exportar SQL</button>
+    <button (click)="export('inserts')">Poblar SQL</button>
     <button (click)="export('backend')">Exportar Backend</button>
     <button (click)="saveDiagram()" style="background: green; color: white;">💾 Guardar Diagrama</button>
   </div>

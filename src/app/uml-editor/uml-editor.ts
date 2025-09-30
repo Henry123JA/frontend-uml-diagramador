@@ -1,7 +1,11 @@
 import { Component } from '@angular/core';
 import { UmlClass, UmlAttribute, Association } from '../interfaces/diagramador.interface';
+import { ActivatedRoute } from '@angular/router';
 import { Diagram } from '../services/diagram';
+import { Project } from '../services/project';
 import { downloadFile, exportToJson, exportToJsonMinimal } from '../utils/export.utils';
+import { loadDiagram } from '../utils/diagram-loader';
+import { ProjectDto } from '../interfaces/diagramador.interface';
 
 @Component({
   selector: 'app-uml-editor',
@@ -12,16 +16,42 @@ import { downloadFile, exportToJson, exportToJsonMinimal } from '../utils/export
 
 export class UmlEditor {
 
-  constructor(private diagramService: Diagram) {}
+  constructor(private diagramService: Diagram,private route: ActivatedRoute,private projectsSvc: Project) {}
   classes: UmlClass[] = [];
   associations: Association[] = [];
   selectedAssociation: Association | null = null;
   selectedClass: UmlClass | null = null;
   selectedClasses: UmlClass[] = [];
+  project: ProjectDto | null = null;
   private dragTarget: UmlClass | null = null;
   private offsetX = 0;
   private offsetY = 0;
   diagramName: string = "";
+  owner: string = "";
+  projectId?: number; // si viene de la lista
+
+  ngOnInit(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) {
+      this.projectsSvc.get(+id).subscribe({
+        next: (proj) => {
+          this.project = proj;
+          this.projectId = proj.id;
+          this.diagramName = proj.projectName;
+          this.owner = proj.createdBy || "";
+
+          // Aquí usamos el helper
+          const { classes, associations } = loadDiagram(proj.umlJson);
+          this.classes = classes;
+          this.associations = associations;
+
+          console.log("Proyecto cargado:", proj);
+        },
+        error: () => alert("No se pudo cargar el proyecto")
+      });
+    }
+  }
+
 //-------------------------CLASES----------------------------------------
   addClass() {
     this.classes.push({
@@ -369,45 +399,50 @@ export class UmlEditor {
 
 
   //-------------------------GUARDAR DIAGRAMA EN BACKEND----------------------------------------
+  // ------------------------- GUARDAR DIAGRAMA EN BACKEND -------------------------
   saveDiagram() {
-    const diagramData = {
-      name: this.diagramName || "SinNombre",
-      classes: this.classes.map(cls => ({
-        id: cls.id,
-        name: cls.name,
-        attributes: cls.attributes,
-        position: { x: cls.x, y: cls.y }
-      })),
-      associations: this.associations.map(assoc => ({
-        type: assoc.type,
-        sourceClassId: assoc.source.id,
-        targetClassId: assoc.target.id,
-        sourceMultiplicity: assoc.sourceMultiplicity || "1",
-        targetMultiplicity: assoc.targetMultiplicity || "1",
-        role: assoc.role || ""
-      }))
+    const payload: ProjectDto = {
+      id: this.project?.id, // si ya existe proyecto, mantiene el id
+      projectName: this.diagramName || "MiDiagrama",
+      createdBy: this.owner || "Pedro",
+      basePackage: "com.example.demo", // opcional, puedes exponerlo en UI si quieres
+      umlJson: exportToJson(this.classes, this.associations)
     };
-    
-    fetch('http://localhost:8080/api/diagrams', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(diagramData)
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log('Diagrama guardado:', data);
-      alert('Diagrama guardado exitosamente');
-    })
-    .catch(err => {
-      console.error('Error:', err);
-      alert('Error al guardar el diagrama');
-    });
-  }
-  
-//------------------------------------------------------
-  export(type: 'json' | 'sql' | 'backend') {
 
-    const minimalTypes = ['sql', 'backend'];
+    if (this.project?.id) {
+      // UPDATE
+      this.projectsSvc.update(this.project.id, payload).subscribe({
+        next: (data) => {
+          console.log("Proyecto actualizado:", data);
+          alert("Proyecto actualizado exitosamente");
+        },
+        error: (err) => {
+          console.error("Error al actualizar proyecto:", err);
+          alert("Error al actualizar el proyecto");
+        }
+      });
+    } else {
+      // CREATE
+      this.projectsSvc.create(payload).subscribe({
+        next: (data) => {
+          console.log("Proyecto creado:", data);
+          this.project = data;
+          alert("Proyecto creado exitosamente");
+        },
+        error: (err) => {
+          console.error("Error al crear proyecto:", err);
+          alert("Error al crear el proyecto");
+        }
+      });
+    }
+  }
+
+
+
+//------------------------------------------------------
+  export(type: 'json' | 'sql' | 'backend' | 'inserts') {
+
+    const minimalTypes = ['sql', 'backend', 'inserts'];
     const diagramData = minimalTypes.includes(type)
       ? exportToJsonMinimal(this.classes, this.associations)
       : exportToJson(this.classes, this.associations);
@@ -435,6 +470,19 @@ export class UmlEditor {
         //downloadFile('${baseName}.zip', blob);
         downloadFile('backend.zip', blob);
         console.log('Backend exportado...');
+      });
+    }
+
+    if (type === 'inserts') {
+      const input = prompt("¿Cuántas filas por tabla deseas insertar?");
+      if (!input) return;
+      const rows = parseInt(input, 10);
+      if (isNaN(rows) || rows <= 0) {
+        alert("Número inválido");
+        return;
+      }
+      this.diagramService.generateInserts(diagramData, rows).subscribe(blob => {
+        downloadFile(`${baseName}_inserts.sql`, blob);
       });
     }
   }

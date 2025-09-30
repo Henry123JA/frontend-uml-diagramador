@@ -1,1 +1,37 @@
-<p>project-list works!</p>
+<div class="list-wrap">
+  <div class="header">
+    <h2>Proyectos</h2>
+    <button class="btn primary" (click)="createNew()">+ Crear proyecto</button>
+  </div>
+
+  <!-- Estado de carga -->
+  <div *ngIf="loading" class="loading">Cargando...</div>
+
+  <!-- Estado vacío -->
+  <div *ngIf="!loading && projects.length === 0" class="empty">
+    No hay proyectos guardados todavía.
+  </div>
+
+  <!-- Tabla con datos -->
+  <table *ngIf="!loading && projects.length > 0" class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Creado por</th>
+        <th class="actions">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let p of projects">
+        <td>{{ p.id }}</td>
+        <td>{{ p.projectName }}</td>
+        <td>{{ p.createdBy || '-' }}</td>
+        <td class="actions">
+          <button class="btn" (click)="edit(p)">✏️ Editar</button>
+          <button class="btn danger" (click)="delete(p)">🗑️ Eliminar</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
