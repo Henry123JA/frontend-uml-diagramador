@@ -1,3 +1,10 @@
+<header class="navbar">
+  <nav class="tabs">
+    <a routerLink="/uml" routerLinkActive="active">📝 Diagramador</a>
+    <a routerLink="/otra" routerLinkActive="active">📊 Otra Página</a>
+  </nav>
+</header>
 
-<h1>Diagramador de Clases UML</h1>
-<app-uml-editor></app-uml-editor>
+<main class="content">
+  <router-outlet></router-outlet>
+</main>

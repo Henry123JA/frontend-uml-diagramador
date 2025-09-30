@@ -1,5 +1,7 @@
 import { Component } from '@angular/core';
 import { UmlClass, UmlAttribute, Association } from '../interfaces/diagramador.interface';
+import { Diagram } from '../services/diagram';
+import { downloadFile, exportToJson, exportToJsonMinimal } from '../utils/export.utils';
 
 @Component({
   selector: 'app-uml-editor',
@@ -10,6 +12,7 @@ import { UmlClass, UmlAttribute, Association } from '../interfaces/diagramador.i
 
 export class UmlEditor {
 
+  constructor(private diagramService: Diagram) {}
   classes: UmlClass[] = [];
   associations: Association[] = [];
   selectedAssociation: Association | null = null;
@@ -18,6 +21,7 @@ export class UmlEditor {
   private dragTarget: UmlClass | null = null;
   private offsetX = 0;
   private offsetY = 0;
+  diagramName: string = "";
 //-------------------------CLASES----------------------------------------
   addClass() {
     this.classes.push({
@@ -362,109 +366,12 @@ export class UmlEditor {
 
     return { x: backX, y: backY };
   }
-  // ========================= EXPORTAR =========================
-  private umlModel = [
-    {
-      name: 'User',
-      attributes: [
-      //  { name: 'id', type: 'integer'},
-        { name: 'name', type: 'String'},
-        { name: 'email', type: 'String'}
-      ]
-    },
-    {
-      name: 'producto',
-      attributes: [
-       // { name: 'id', type: 'integer'},
-        { name: 'name', type: 'String'},
-        { name: 'price', type: 'double'}
-      ]
-    }
-  ]
 
-
-  //-------------------------EXPORT JSON COMPLETO----------------------------------------
-  export(type: 'json' | 'sql' | 'backend') {
-    if (type === 'json') {
-      const completeModel = {
-        classes: this.classes.map(cls => ({
-          id: cls.id,
-          name: cls.name,
-          attributes: cls.attributes.map(attr => ({
-            name: attr.name,
-            type: attr.type
-          })),
-          // Opcional: incluir posición para recrear el diagrama visualmente
-          position: {
-            x: cls.x,
-            y: cls.y
-          }
-        })),
-        
-        associations: this.associations.map(assoc => ({
-          id: crypto.randomUUID(), // generar ID si no existe
-          type: assoc.type,
-          sourceClassId: assoc.source.id,
-          targetClassId: assoc.target.id,
-          sourceClassName: assoc.source.name, // para legibilidad
-          targetClassName: assoc.target.name, // para legibilidad
-          sourceMultiplicity: assoc.sourceMultiplicity || "1",
-          targetMultiplicity: assoc.targetMultiplicity || "1",
-          role: assoc.role || ""
-        })),
-        
-        // Metadata adicional
-        metadata: {
-          version: "1.0",
-          createdAt: new Date().toISOString(),
-          totalClasses: this.classes.length,
-          totalAssociations: this.associations.length
-        }
-      };
-      
-      this.download('diagram.json', JSON.stringify(completeModel, null, 2));
-      console.log('👉 JSON exportado:', completeModel);
-    }
-    
-    if (type === 'sql') {
-      // Solo clases para SQL (como antes)
-      const sqlModel = this.classes.map(cls => ({
-        name: cls.name,
-        attributes: cls.attributes
-      }));
-      
-      fetch('http://localhost:8080/api/generator/sql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sqlModel),
-      })
-        .then(res => res.blob())
-        .then(blob => this.download('schema.sql', blob));
-      console.log('👉 Generar SQL...');
-    }
-    
-    if (type === 'backend') {
-      // Solo clases para backend (como antes)
-      const backendModel = this.classes.map(cls => ({
-        name: cls.name,
-        attributes: cls.attributes
-      }));
-      
-      fetch('http://localhost:8080/api/generator/backend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(backendModel),
-      })
-        .then(res => res.blob())
-        .then(blob => this.download('backend.zip', blob));
-      console.log('👉 Generar Backend...');
-    }
-  }
 
   //-------------------------GUARDAR DIAGRAMA EN BACKEND----------------------------------------
   saveDiagram() {
     const diagramData = {
-      name: prompt("Nombre del diagrama:") || "Mi Diagrama",
+      name: this.diagramName || "SinNombre",
       classes: this.classes.map(cls => ({
         id: cls.id,
         name: cls.name,
@@ -496,17 +403,42 @@ export class UmlEditor {
       alert('Error al guardar el diagrama');
     });
   }
+  
+//------------------------------------------------------
+  export(type: 'json' | 'sql' | 'backend') {
 
-  private download(filename: string, content: Blob | string) {
-    const blob = content instanceof Blob ? content : new Blob([content], { type: 'application/json;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    const minimalTypes = ['sql', 'backend'];
+    const diagramData = minimalTypes.includes(type)
+      ? exportToJsonMinimal(this.classes, this.associations)
+      : exportToJson(this.classes, this.associations);
+
+    const baseName = this.diagramName && this.diagramName.trim() !== "" 
+    ? this.diagramName 
+    : "diagram";
+
+    if (type === 'json') {
+      //downloadFile('${baseName}.json', JSON.stringify(diagramData, null, 2));
+      downloadFile('diagram.json', JSON.stringify(diagramData, null, 2));
+      console.log('JSON exportado:', diagramData);
+    }
+
+    if (type === 'sql') {
+      this.diagramService.generateSQL(diagramData).subscribe(blob => {
+        //downloadFile('${baseName}.sql', blob);
+        downloadFile('schema.sql', blob);
+        console.log('SQL exportado...');
+      });
+    }
+
+    if (type === 'backend') {
+      this.diagramService.generateBackend(diagramData).subscribe(blob => {
+        //downloadFile('${baseName}.zip', blob);
+        downloadFile('backend.zip', blob);
+        console.log('Backend exportado...');
+      });
+    }
   }
-
+  
   //----------------------------para eliminar clases y asociaciones y atributos-------------------------------
 
   //-------------------------ELIMINAR----------------------------------------

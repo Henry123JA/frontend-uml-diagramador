@@ -1,6 +1,12 @@
 <div class="uml-editor" >
   <h2>Editor UML</h2>
 
+  <div>
+    <label>
+      Nombre del diagrama:
+      <input [(ngModel)]="diagramName" placeholder="Ej: MiDiagrama" />
+    </label>
+  </div>
   <div class="toolbar">
     <button (click)="addClass()">➕ Agregar Clase</button>
     <button (click)="addAssociation()">🔗 Agregar Asociación</button>
@@ -198,6 +204,7 @@
 
 
   <div class="actions">
+    
     <button (click)="export('json')">Exportar JSON</button>
     <button (click)="export('sql')">Exportar SQL</button>
     <button (click)="export('backend')">Exportar Backend</button>

@@ -1,0 +1,37 @@
+/* Barra superior */
+.navbar {
+  background-color: #f5deb3; /* color crema (wheat) */
+  padding: 10px 20px;
+  border-bottom: 2px solid #ccc;
+}
+
+/* Tabs dentro de la barra */
+.tabs {
+  display: flex;
+  gap: 20px;
+}
+
+.tabs a {
+  padding: 8px 16px;
+  text-decoration: none;
+  color: black;
+  border-radius: 5px 5px 0 0;
+  background: #f5deb3;
+  transition: background 0.2s;
+}
+
+.tabs a:hover {
+  background: #ffe4b5; /* un poco más claro al pasar */
+}
+
+.tabs a.active {
+  background: white;
+  border: 2px solid #ccc;
+  border-bottom: none;
+  font-weight: bold;
+}
+
+/* Contenido debajo de la barra */
+.content {
+  padding: 20px;
+}
